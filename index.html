@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat2Notepad</title>
+  <style>
+    body { margin: 0; background: #111; color: #eee; font-family: ui-monospace, monospace; }
+    #notepad { width: 100%; height: 100vh; border: none; background: #111; color: #eee; font-size: 16px; padding: 20px; resize: none; outline: none; box-sizing: border-box; }
+    .status { position: fixed; bottom: 10px; right: 10px; color: #888; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <textarea id="notepad" placeholder="Type here... Select text and press Ctrl+Enter (or Cmd+Enter) to ask Grok."></textarea>
+  <div class="status" id="status">Ready</div>
+
+  <script>
+    const notepad = document.getElementById('notepad');
+    const status = document.getElementById('status');
+
+    // Auto-save to localStorage
+    notepad.value = localStorage.getItem('notepad') || '';
+    notepad.addEventListener('input', () => localStorage.setItem('notepad', notepad.value));
+
+    notepad.addEventListener('keydown', async (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        const selected = notepad.value.substring(notepad.selectionStart, notepad.selectionEnd).trim();
+        const prompt = selected || notepad.value.trim();
+        if (!prompt) return;
+
+        status.textContent = 'Asking Grok...';
+        try {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt })
+          });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+
+          // Insert response after the selection (or at the end)
+          const start = notepad.selectionStart;
+          const end = notepad.selectionEnd;
+          const before = notepad.value.slice(0, end);
+          const after = notepad.value.slice(end);
+          notepad.value = before + '\n\n' + data.reply + '\n' + after;
+          notepad.selectionStart = notepad.selectionEnd = end + data.reply.length + 2;
+          localStorage.setItem('notepad', notepad.value);
+          status.textContent = 'Done';
+        } catch (err) {
+          status.textContent = 'Error: ' + err.message;
+        }
+      }
+    });
+  </script>
+</body>
+</html>
