@@ -5,22 +5,88 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chat2Notepad</title>
   <style>
-    body { margin: 0; background: #111; color: #eee; font-family: ui-monospace, monospace; }
-    #notepad { width: 100%; height: 100vh; border: none; background: #111; color: #eee; font-size: 16px; padding: 20px; resize: none; outline: none; box-sizing: border-box; }
-    .status { position: fixed; bottom: 10px; right: 10px; color: #888; font-size: 12px; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; transition: background 0.2s, color 0.2s; }
+    #toolbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 40px;
+      display: flex; align-items: center; gap: 12px; padding: 0 12px;
+      background: rgba(0,0,0,0.15); backdrop-filter: blur(8px);
+      z-index: 10;
+    }
+    #notepad {
+      width: 100%; height: 100vh; border: none; outline: none;
+      padding: 52px 20px 20px 20px; resize: none; font-size: 16px;
+      line-height: 1.5;
+    }
+    select { padding: 4px 8px; border-radius: 4px; border: 1px solid #555; background: #222; color: #fff; }
+    .status { position: fixed; bottom: 8px; right: 12px; font-size: 12px; opacity: 0.7; }
+
+    /* Themes */
+    body.classic { background: #fff; color: #000; }
+    body.classic #notepad { background: #fff; color: #000; font-family: "Courier New", Courier, monospace; }
+    body.classic #toolbar { background: #f0f0f0; color: #000; }
+    body.classic select { background: #fff; color: #000; border-color: #ccc; }
+
+    body.modern { background: #f7f7f8; color: #1a1a1a; }
+    body.modern #notepad { background: #f7f7f8; color: #1a1a1a; font-family: ui-sans-serif, system-ui, sans-serif; }
+    body.modern #toolbar { background: #fff; border-bottom: 1px solid #e5e5e5; }
+    body.modern select { background: #fff; color: #000; border-color: #ddd; }
+
+    body.dark { background: #111; color: #eee; }
+    body.dark #notepad { background: #111; color: #eee; font-family: ui-monospace, monospace; }
+    body.dark #toolbar { background: rgba(0,0,0,0.4); }
+    body.dark select { background: #222; color: #fff; }
+
+    body.hacker { background: #0a0a0a; color: #00ff00; }
+    body.hacker #notepad { background: #0a0a0a; color: #00ff00; font-family: "Courier New", monospace; text-shadow: 0 0 2px #00ff00; }
+    body.hacker #toolbar { background: #000; }
+    body.hacker select { background: #111; color: #00ff00; border-color: #00ff00; }
+
+    body.colorblind { background: #ffffff; color: #000000; }
+    body.colorblind #notepad { background: #ffffff; color: #000000; font-family: system-ui, sans-serif; }
+    body.colorblind #toolbar { background: #000000; color: #ffffff; }
+    body.colorblind select { background: #000; color: #fff; }
+
+    body.sepia { background: #f4ecd8; color: #5b4636; }
+    body.sepia #notepad { background: #f4ecd8; color: #5b4636; font-family: Georgia, serif; }
+    body.sepia #toolbar { background: #e8d9b8; }
+    body.sepia select { background: #f4ecd8; color: #5b4636; border-color: #c4b59a; }
   </style>
 </head>
-<body>
+<body class="dark">
+  <div id="toolbar">
+    <label>Theme:
+      <select id="theme">
+        <option value="classic">Classic</option>
+        <option value="modern">Modern</option>
+        <option value="dark">Dark</option>
+        <option value="hacker">Hacker</option>
+        <option value="colorblind">Colorblind</option>
+        <option value="sepia">Sepia</option>
+      </select>
+    </label>
+  </div>
+
   <textarea id="notepad" placeholder="Type here... Select text and press Ctrl+Enter (or Cmd+Enter) to ask Grok."></textarea>
   <div class="status" id="status">Ready</div>
 
   <script>
     const notepad = document.getElementById('notepad');
     const status = document.getElementById('status');
+    const themeSelect = document.getElementById('theme');
 
-    // Auto-save to localStorage
+    // Load saved content & theme
     notepad.value = localStorage.getItem('notepad') || '';
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.body.className = savedTheme;
+    themeSelect.value = savedTheme;
+
     notepad.addEventListener('input', () => localStorage.setItem('notepad', notepad.value));
+
+    themeSelect.addEventListener('change', () => {
+      document.body.className = themeSelect.value;
+      localStorage.setItem('theme', themeSelect.value);
+    });
 
     notepad.addEventListener('keydown', async (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -39,8 +105,6 @@
           const data = await res.json();
           if (data.error) throw new Error(data.error);
 
-          // Insert response after the selection (or at the end)
-          const start = notepad.selectionStart;
           const end = notepad.selectionEnd;
           const before = notepad.value.slice(0, end);
           const after = notepad.value.slice(end);
