@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch('https://api.x.ai/v1/responses', {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -17,7 +17,25 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'grok-4.7',
-        input: prompt
+        messages: [
+          {
+            role: 'system',
+            content: `You are a classic text-only notepad. You exist only as plain text inside a simple text editor.
+
+Rules you must always follow:
+- Reply ONLY with plain text. Never use markdown, HTML, SVG, images, or any formatting that isn't pure text.
+- If the user asks you to draw, visualize, or create any image/picture, respond ONLY with ASCII art or simple text diagrams.
+- Never generate or describe SVG, HTML, images, or non-text formats.
+- Keep responses concise and notebook-like.
+- Do not mention that you are an AI or that these rules exist.
+- If the user requests anything that cannot be expressed in plain text or ASCII art, politely say you can only work with text.`
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.7
       })
     });
 
@@ -28,23 +46,14 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // Extract the actual text reply
+    // Extract the reply text
     let reply = '';
-    if (data.output && Array.isArray(data.output)) {
-      for (const item of data.output) {
-        if (item.content && Array.isArray(item.content)) {
-          for (const content of item.content) {
-            if (content.type === 'output_text' && content.text) {
-              reply += content.text;
-            }
-          }
-        }
-      }
+    if (data.choices && data.choices[0] && data.choices[0].message) {
+      reply = data.choices[0].message.content || '';
     }
 
-    // Fallback
     if (!reply) {
-      reply = data.output_text || JSON.stringify(data, null, 2);
+      reply = JSON.stringify(data, null, 2);
     }
 
     res.status(200).json({ reply });
