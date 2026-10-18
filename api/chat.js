@@ -16,7 +16,7 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${process.env.XAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'grok-4.7',   // or grok-4.3 / grok-build-0.1 if you want cheaper
+        model: 'grok-4.7',
         input: prompt
       })
     });
@@ -27,8 +27,25 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json();
-    // Adjust this if the response shape differs — check the xAI docs or console for the exact field
-    const reply = data.output_text || data.output?.[0]?.content?.[0]?.text || JSON.stringify(data);
+
+    // Extract the actual text reply
+    let reply = '';
+    if (data.output && Array.isArray(data.output)) {
+      for (const item of data.output) {
+        if (item.content && Array.isArray(item.content)) {
+          for (const content of item.content) {
+            if (content.type === 'output_text' && content.text) {
+              reply += content.text;
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback
+    if (!reply) {
+      reply = data.output_text || JSON.stringify(data, null, 2);
+    }
 
     res.status(200).json({ reply });
   } catch (err) {
